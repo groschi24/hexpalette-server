@@ -1,0 +1,59 @@
+http:
+  port: 8080
+admin:
+  port: 9876
+  host: localhost
+apiEndpoints:
+  auth_service:
+    host: "*"
+    paths: ["/api/auth/*", "/api/token/*", "/api/user/*"]
+  color_service:
+    host: "*"
+    paths:
+      [
+        "/api/palettes",
+        "/api/gradients",
+        "/api/collections",
+        "/api/projects",
+        "/api/palettes/*",
+        "/api/gradients/*",
+        "/api/collections/*",
+        "/api/projects/*",
+      ]
+serviceEndpoints:
+  auth_service:
+    url: "http://auth_service:3000"
+  color_service:
+    url: "http://color_service:3000"
+policies:
+  - basic-auth
+  - cors
+  - expression
+  - key-auth
+  - log
+  - oauth2
+  - proxy
+  - rate-limit
+pipelines:
+  auth_service:
+    apiEndpoints:
+      - auth_service
+    policies:
+      - proxy:
+          - action:
+              serviceEndpoint: auth_service
+              changeOrigin: true
+      - log:
+          action:
+            message: ${req.method} ${req.originalUrl}
+  color_service:
+    apiEndpoints:
+      - color_service
+    policies:
+      - proxy:
+          - action:
+              serviceEndpoint: color_service
+              changeOrigin: true
+      - log:
+          action:
+            message: ${req.method} ${req.originalUrl}

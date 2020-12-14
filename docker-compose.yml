@@ -1,0 +1,92 @@
+version: "3.6"
+
+services:
+  # Authtentication Service
+  auth_service:
+    build: ./auth-service
+    container_name: "auth_service"
+    environment:
+      - MONGO_LOCAL_CONN_URL=mongodb://devuser:secret123@auth_db:27017/?authSource=admin&readPreference=primary&ssl=false
+      - JWT_SECRET=jwt-secret
+      - PORT=3000
+      - WAIT_HOSTS=auth_db:27017
+      - WAIT_HOSTS_TIMEOUT=100
+      - WAIT_BEFORE_HOSTS=5
+      - SWAGGER_USERNAME=swagger-stats
+      - SWAGGER_PASSWORD=swagger-stats
+      - SENDGRID_API_KEY=sendgrid_key
+    ports:
+      - 4000:3000
+    links:
+      - auth_db
+    depends_on:
+      - auth_db
+  auth_db:
+    image: mongo
+    container_name: "auth_db"
+    environment:
+      - MONGO_INITDB_DATABASE=authdb
+      - MONGO_INITDB_ROOT_USERNAME=devuser
+      - MONGO_INITDB_ROOT_PASSWORD=secret123
+    volumes:
+      - ./.docker/mongo-volumes/auth_db_dev:/data/db
+    restart: unless-stopped
+
+  # Holds the Informations of the Files hosted on the Storage Service
+  color_service:
+    build: ./color-service
+    container_name: "color_service"
+    environment:
+      - MONGO_LOCAL_CONN_URL=mongodb://devuser:secret123@color_db:27017/?authSource=admin&readPreference=primary&ssl=false
+      - PORT=3000
+      - AUTH_SERVER_HOST=auth_service:3000
+      - WAIT_HOSTS=color_db:27017
+      - WAIT_HOSTS_TIMEOUT=100
+      - WAIT_BEFORE_HOSTS=5
+      - SWAGGER_USERNAME=swagger-stats
+      - SWAGGER_PASSWORD=swagger-stats
+    ports:
+      - 4002:3000
+    links:
+      - color_db
+    depends_on:
+      - color_db
+  color_db:
+    image: mongo
+    container_name: "color_db"
+    environment:
+      - MONGO_INITDB_DATABASE=colordb
+      - MONGO_INITDB_ROOT_USERNAME=devuser
+      - MONGO_INITDB_ROOT_PASSWORD=secret123
+    volumes:
+      - ./.docker/mongo-volumes/color_db_dev:/data/db
+    restart: unless-stopped
+
+  # The Gateway for all API Containers
+  gateway:
+    build: ./gateway
+    container_name: "gateway"
+    links:
+      - auth_service
+      - color_service
+    environment:
+      - WAIT_HOSTS=color_service:3000, auth_service:3000
+      - WAIT_HOSTS_TIMEOUT=160
+      - WAIT_BEFORE_HOSTS=10
+    ports:
+      - 8080:8080
+      - 9876:9876
+
+  # Database for local Dev
+  local_db:
+    image: mongo
+    container_name: "local_db"
+    environment:
+      - MONGO_INITDB_DATABASE=testdb
+      - MONGO_INITDB_ROOT_USERNAME=test
+      - MONGO_INITDB_ROOT_PASSWORD=test
+    volumes:
+      - ./.docker/mongo-volumes/local_db:/data/db
+    restart: unless-stopped
+    ports:
+      - "27017-27019:27017-27019"

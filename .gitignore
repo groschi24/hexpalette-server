@@ -1,0 +1,4 @@
+mongo-volumes/
+.docker/storage
+.frontend_build/
+.ssl-data/
